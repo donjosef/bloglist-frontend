@@ -1,115 +1,75 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect } from 'react'
 import Blog from './components/Blog'
+import FullBlog from './components/FullBlog'
 import Toggle from './components/Toggle'
 import LoginForm from './components/LoginForm'
 import NewBlogForm from './components/NewBlogForm'
 import Notification from './components/Notification'
-import blogService from './services/blogs'
-import loginService from './services/login'
+import Navigation from './components/Navigation'
+import User from './components/User'
+import FullUser from './components/FullUser'
+
+import { useSelector, useDispatch } from 'react-redux'
+import { initBlogs, removeBlog, updateBlog } from './reducers/blogsReducer'
+import { initUsers } from './reducers/usersReducer'
+
+import { Route, useRouteMatch } from 'react-router-dom'
+
+import { NewBlogButton, CancelButton } from './styled-components'
 
 const App = () => {
-  const [blogs, setBlogs] = useState([])
-  const [user, setUser] = useState(null)
-  const [successfullMessage, setSuccessfullMessage] = useState(null)
-  const [errorMessage, setErrorMessage] = useState(null)
+  const blogs = useSelector(state => state.blogs)
+  const users = useSelector(state => state.users)
+  const user = useSelector(state => state.user)
+  const dispatch = useDispatch()
+  const blogMatch = useRouteMatch('/blogs/:blogId')
+  const userMatch = useRouteMatch('/users/:userId')
+
+  //blog to be passed to FullBlog component that will render that specific blog object
+  const fullBlog = blogMatch ? blogs.find(blog => blog.id === blogMatch.params.blogId) : null
+  const fullUser = userMatch ? users.find(user => user.id === userMatch.params.userId) : null
 
   useEffect(() => {
-    getBlogs()
+    dispatch(initBlogs())
+    dispatch(initUsers())
   }, [])
 
   useEffect(() => {
     const user = localStorage.getItem('user')
     if (user) {
-      setUser(JSON.parse(user))
+      dispatch({
+        type: 'SET_USER',
+        user: JSON.parse(user)
+      })
     }
   }, [])
 
-  const getBlogs = async () => {
-    const blogs = await blogService.getAll()
-    setBlogs(blogs)
-  }
-
-  const handleLogin = async ({ username, password }) => {
-    try {
-      const user = await loginService.login({ username, password })
-      localStorage.setItem('user', JSON.stringify(user))
-      setUser(user)
-    } catch (err) {
-      setErrorMessage(`${err.response.data.error}`)
-      setTimeout(() => {
-        setErrorMessage(null)
-      }, 4000)
-    }
-  }
-
-  const handleLogout = () => {
-    setUser(null)
-    localStorage.removeItem('user')
-  }
-
-  const handleCreateNewBlog = async (newBlog) => {
-    try {
-      const blog = await blogService.create(newBlog, user)
-      setBlogs(blogs.concat(blog))
-      setSuccessfullMessage(`New blog by ${user.username} successfully added`)
-      setTimeout(() => {
-        setSuccessfullMessage(null)
-      }, 4000)
-    } catch (err) {
-      console.log('Inside catch of create new blog: ', err)
-    }
-  }
-
   const handleUpdateBlog = async (blog) => {
-    try {
-      const updatedBlog = await blogService.update(blog)
-      setBlogs(blogs.map(b => b.id === updatedBlog.id ? updatedBlog : b))
-    } catch (err) {
-      console.log(err)
-    }
+    dispatch(updateBlog(blog))
   }
 
   const handleDeleteBlog = async (blogId) => {
-    try {
-      await blogService.remove(blogId, user)
-      setBlogs(blogs.filter(b => b.id !== blogId ))
-    } catch (err) {
-      console.log(err)
-    }
-  }
-
-  let notification = null
-  if (successfullMessage) {
-    notification = <Notification color='green'>{successfullMessage}</Notification>
-  }
-
-  if (errorMessage) {
-    notification = <Notification color='red'>{errorMessage}</Notification>
+    dispatch(removeBlog(blogId, user))
   }
 
   return (
     <div>
-      {notification}
+      <Notification />
       {!user ? (
-        <LoginForm onLogin={handleLogin} />
+        <LoginForm />
       ) : (
         <>
-          <p>
-            {user.username} logged in
-            <button onClick={handleLogout}>Logout</button>
-          </p>
+          <Navigation user={user}/>
           <Toggle>
             {
               ({ visible, setVisible }) => {
-                let output = <button onClick={() => setVisible(true)}>New blog</button>
+                let output = <NewBlogButton onClick={() => setVisible(true)}>New blog</NewBlogButton>
 
                 if(visible) {
                   output = (
                     <>
-                      <NewBlogForm
-                        onCreateNewBlog={handleCreateNewBlog}
-                        onHideForm={() => setVisible(false)}/>
-                      <button onClick={() => setVisible(false)}>Cancel</button>
+                      <NewBlogForm user={user} onHideForm={() => setVisible(false)}/>
+                      <CancelButton onClick={() => setVisible(false)}>Cancel</CancelButton>
                     </>
                   )
                 }
@@ -118,22 +78,26 @@ const App = () => {
               }
             }
           </Toggle>
-          <h2>blogs</h2>
-          {blogs.sort((blogA, blogB) => blogB.likes - blogA.likes).map(blog =>
-            <Toggle key={blog.id}>
-              {({ visible, setVisible }) => {
-                return (
-                  <Blog
-                    blog={blog}
-                    visible={visible}
-                    onShowBlog={() => setVisible(!visible)}
-                    onUpdateBlogLike={handleUpdateBlog}
-                    onDeleteBlog={handleDeleteBlog}
-                    loggedInUser={user.username} />
-                )
-              }}
-            </Toggle>
-          )}
+          <Route exact path='/'>
+            <h2>blogs</h2>
+            {blogs.sort((blogA, blogB) => blogB.likes - blogA.likes).map(blog => (
+              <Blog key={blog.id} blog={blog} />
+            ))}
+          </Route>
+          <Route path='/blogs/:blogId'>
+            <FullBlog
+              blog={fullBlog}
+              onUpdateBlogLike={handleUpdateBlog}
+              onDeleteBlog={handleDeleteBlog}
+              loggedInUser={user.username}/>
+          </Route>
+          <Route exact path='/users'>
+            <h2>users</h2>
+            {users.map(user => <User key={user.id} user={user}/>)}
+          </Route>
+          <Route path='/users/:userId'>
+            <FullUser user={fullUser}/>
+          </Route>
         </>
       )}
     </div>

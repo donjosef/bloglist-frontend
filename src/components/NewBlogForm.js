@@ -1,9 +1,14 @@
 import React, { useState } from 'react'
+import { useDispatch } from 'react-redux'
+import { createBlog } from '../reducers/blogsReducer'
 
-const NewBlogForm = ({ onCreateNewBlog, onHideForm }) => {
+import { CreateButton } from '../styled-components'
+
+const NewBlogForm = ({ user, onHideForm }) => {
   const [title, setTitle] = useState('')
   const [author, setAuthor] = useState('')
   const [url, setUrl] = useState('')
+  const dispatch = useDispatch()
 
   const handleBlogCreation = (e) => {
     e.preventDefault()
@@ -13,7 +18,7 @@ const NewBlogForm = ({ onCreateNewBlog, onHideForm }) => {
       url
     }
 
-    onCreateNewBlog(newBlog)
+    dispatch(createBlog(newBlog, user))
     onHideForm()
   }
 
@@ -33,7 +38,7 @@ const NewBlogForm = ({ onCreateNewBlog, onHideForm }) => {
           <label htmlFor="url">Url: </label>
           <input id="url" type="text" value={url} onChange={(e) => setUrl(e.target.value)} />
         </div>
-        <button id="create-blog-btn">Create</button>
+        <CreateButton id="create-blog-btn">Create</CreateButton>
       </form>
     </div>
   )

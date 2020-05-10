@@ -33,7 +33,7 @@ const update = async (blog) => {
 }
 
 const remove = async (blogId, user) => {
-  const res = await axios({
+  await axios({
     url: `${baseUrl}/${blogId}`,
     method: 'DELETE',
     headers: {
@@ -42,4 +42,9 @@ const remove = async (blogId, user) => {
   })
 }
 
-export default { getAll, create, update, remove }
+const addComment = async (blogId, comment) => {
+  const res = await axios.post(baseUrl + `/${blogId}/comments`, { comment })
+  return res.data
+}
+
+export default { getAll, create, update, remove, addComment }
